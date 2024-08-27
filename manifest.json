@@ -1,0 +1,21 @@
+{
+    "name": "Phomemo M110 Sticker Printer",
+    "short_name": "M110 Printer",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#f0f0f0",
+    "theme_color": "#007bff",
+    "description": "A web app for generating barcode stickers",
+    "icons": [
+        {
+            "src": "icon.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icon.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
