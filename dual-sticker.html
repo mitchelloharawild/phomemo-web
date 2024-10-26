@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phomemo M110 Sticker Printer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #333;
+            color: #fff;
+        }
+
+        .form-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #444;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        form {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        label {
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 12px;
+            border: 1px solid #666;
+            border-radius: 4px;
+            background-color: #555;
+            color: white;
+            box-sizing: border-box; /* Ensures the padding works properly */
+        }
+
+        .input-group {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .input-group input {
+            width: 48%; /* Each input gets 48% of the available space */
+        }
+
+        input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+
+        .print-button {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #555;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .print-button:hover {
+            background-color: #666;
+        }
+
+        .print-button span {
+            margin-left: 5px;
+        }
+
+        canvas {
+            margin-top: 20px;
+            border: 2px solid #777;
+            background-color: #fff;
+            border-radius: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2>Phomemo M110 Sticker Printer</h2>
+        <form id="qrCodeForm">
+
+            <div class="input-group">
+                <div>
+                    <label for="qrCodeTextL">Left QR:</label>
+                    <input type="text" id="qrCodeTextL" name="qrCodeTextL" placeholder="Enter text for QR code">
+                </div>
+                <div>
+                    <label for="qrCodeTextR">Left QR:</label>
+                    <input type="text" id="qrCodeTextR" name="qrCodeTextR" placeholder="Enter text for QR code">
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <div>
+                    <label for="stickerWidth">Width (mm):</label>
+                    <input type="number" id="stickerWidth" name="stickerWidth" value="20" placeholder="Width in mm">
+                </div>
+                <div>
+                    <label for="stickerHeight">Height (mm):</label>
+                    <input type="number" id="stickerHeight" name="stickerHeight" value="10" placeholder="Height in mm">
+                </div>
+                <div>
+                    <label for="stickerGap">Gap (mm):</label>
+                    <input type="number" id="stickerGap" name="stickerGap" value="2" placeholder="Gap in mm">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <div>
+                    <label for="centeredTextL">Left text:</label>
+                    <textarea id="centeredTextL" name="centeredTextL" placeholder="Enter text to center" rows="3" style="width: 100%;"></textarea>
+                </div>
+                <div>
+                    <label for="centeredTextR">Right text:</label>
+                    <textarea id="centeredTextR" name="centeredTextR" placeholder="Enter text to center" rows="3" style="width: 100%;"></textarea>
+                </div>
+            </div>
+
+
+            <div class="input-group">
+                <div class="date-picker-container" id="datePickerContainer">
+                    <input type="checkbox" id="useDate" name="useDate" checked>
+                    <label for="datePicker">Select Date:</label>
+                    <input type="date" id="datePicker" name="datePicker">
+                </div>
+            </div>
+
+
+        </form>
+
+        <button class="print-button" id="connectButton">Connect printer</button>
+
+        <button class="print-button" id="printButton" disabled>🖨 Print Sticker</button>
+
+        <canvas id="qrCodeCanvas"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-svg@1.1.0/dist/qrcode.min.js"></script>
+    <script src="print.js"></script>
+    <script>
+        const qrCodeTextL = document.getElementById('qrCodeTextL');
+        const qrCodeTextR = document.getElementById('qrCodeTextR');
+        const stickerWidthInput = document.getElementById('stickerWidth');
+        const stickerHeightInput = document.getElementById('stickerHeight');
+        const stickerGapInput = document.getElementById('stickerGap');
+        const centeredTextLInput = document.getElementById('centeredTextL');
+        const centeredTextRInput = document.getElementById('centeredTextR');
+        const useDate = document.getElementById('useDate');
+        const datePickerContainer = document.getElementById('datePickerContainer');
+        const datePicker = document.getElementById('datePicker');
+        const canvas = document.getElementById('qrCodeCanvas');
+        const printButton = document.getElementById('printButton');
+        const connectButton = document.getElementById('connectButton');
+        const ctx = canvas.getContext('2d');
+
+        // Add todays date as the default
+        document.getElementById('datePicker').valueAsDate = new Date();
+
+        // Function to convert mm to pixels
+        const mmToPx = (mm) => mm * 203 / 25.4;
+
+        // Function to update canvas size dynamically
+        const updateCanvasSize = () => {
+            const widthMm = stickerWidthInput.value || 20;
+            const heightMm = stickerHeightInput.value || 10;
+            const gapMm = stickerGapInput.value || 2;
+
+            const widthPx = mmToPx(widthMm*2 + gapMm*1);
+            const heightPx = mmToPx(heightMm);
+
+            canvas.width = widthPx;
+            canvas.height = heightPx;
+        };
+
+        const gapPx = () => {
+            const gapMm = stickerGapInput.value || 2;
+            return mmToPx(gapMm);
+        };
+
+        // Function to draw the current date on the canvas (if the checkbox is checked)
+        const drawDate = () => {
+            if (useDate.checked) {
+                const selectedDate = datePicker.value || new Date().toLocaleDateString();
+                ctx.font = '12px Arial';
+                ctx.fillStyle = '#000'; // Set date text color to black
+                ctx.textAlign = 'right';
+                ctx.fillText(selectedDate, (canvas.width - gapPx())/2 - 10, 20); // Left sticker top-right corner with padding
+                ctx.fillText(selectedDate, canvas.width - 10, 20); // Right sticker top-right corner with padding
+            }
+        };
+
+        // Function to draw centered text on the canvas (allow multiline)
+        const drawCenteredText = () => {
+            ctx.font = '16pt Arial';
+            ctx.fillStyle = '#000'; // Centered text color to black
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const centeredTextL = centeredTextLInput.value.trim();
+            if (centeredTextL) {
+                const lines = centeredTextL.split('\n');
+
+                const lineHeight = 30; // Line height in pixels
+                centerY = canvas.height / 2 - (lineHeight * (lines.length - 1)) / 2;
+
+                // Lower text if QR code is used
+                if (qrCodeTextL.value.trim() !== "") {
+                    centerY = centerY + canvas.height / 4;
+                }
+
+                lines.forEach((line, i) => {
+                    ctx.fillText(line, (canvas.width - gapPx()) / 4, centerY + i * lineHeight);
+                });
+            }
+            const centeredTextR = centeredTextRInput.value.trim();
+            if (centeredTextR) {
+                const lines = centeredTextR.split('\n');
+
+                const lineHeight = 30; // Line height in pixels
+                centerY = canvas.height / 2 - (lineHeight * (lines.length - 1)) / 2;
+
+                // Lower text if QR code is used
+                if (qrCodeTextR.value.trim() !== "") {
+                    centerY = centerY + canvas.height / 4;
+                }
+
+                lines.forEach((line, i) => {
+                    ctx.fillText(line, (canvas.width + gapPx()) * (3 / 4), centerY + i * lineHeight);
+                });
+            }
+        };
+
+
+        // Function to draw QR code on the canvas
+        const drawQRCode = () => {
+            const qrTextL = qrCodeTextL.value.trim();   
+            const qrSize = 0.8 * canvas.height; // 80% of canvas height
+
+            if (qrTextL) {
+                const qrSvg = new QRCode({
+                    content: qrCodeTextL.value,
+                    padding: 0,
+                    width: qrSize,
+                    height: qrSize,
+                    color: '#000000',
+                    background: '#ffffff',
+                    join: true,
+                }).svg();
+
+                // Convert SVG to image and draw on the canvas
+                const img = new Image();
+                const svgBlob = new Blob([qrSvg], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(svgBlob);
+
+                img.onload = () => {
+                    ctx.drawImage(img, 10, 10, qrSize, qrSize); // Draw QR code in top-left corner
+                    URL.revokeObjectURL(url); // Release memory
+                };
+
+                img.src = url; // Set image source to the SVG URL
+            }
+
+            const qrTextR = qrCodeTextR.value.trim();
+            if (qrTextR) {
+                const qrSvg = new QRCode({
+                    content: qrCodeTextR.value,
+                    padding: 0,
+                    width: qrSize,
+                    height: qrSize,
+                    color: '#000000',
+                    background: '#ffffff',
+                    join: true,
+                }).svg();
+
+                // Convert SVG to image and draw on the canvas
+                const img = new Image();
+                const svgBlob = new Blob([qrSvg], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(svgBlob);
+
+                img.onload = () => {
+                    ctx.drawImage(img, (canvas.width + gapPx())/2 + 10, 10, qrSize, qrSize); // Draw QR code in top-left corner
+                    URL.revokeObjectURL(url); // Release memory
+                };
+
+                img.src = url; // Set image source to the SVG URL
+            }
+        };
+
+
+        // Function to draw the canvas
+        const drawCanvas = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+
+            // Draw white background
+            ctx.fillStyle = '#fff';
+            // ctx.fillRect(0, 0, (canvas.width - gapPx())/2, canvas.height);
+            // ctx.fillRect((canvas.width + gapPx())/2, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawQRCode();
+            drawDate(); // Draw date if checkbox is checked
+            drawCenteredText(); // Draw centered text if provided
+        };
+
+
+        // Add connect functionality
+        connectButton.addEventListener('click', async function connect() {
+            if (serialPort) {
+                await closeSerialPort();
+                printButton.toggleAttribute('disabled');
+                connectButton.textContent = 'Connect printer';
+            } else {
+                openSerialPort()
+                    .then(function(success){
+                        printButton.toggleAttribute('disabled');
+                        if (success) connectButton.textContent = 'Disconnect printer';
+                    });
+                
+            }
+        });
+
+        // Add print functionality
+        printButton.addEventListener('click', async function print() {
+            await printImage(canvas);
+        });
+
+        // Update canvas on any input change (no button needed)
+        qrCodeTextL.addEventListener('input', drawCanvas);
+        qrCodeTextR.addEventListener('input', drawCanvas);
+        stickerWidthInput.addEventListener('input', () => {
+            updateCanvasSize();
+            drawCanvas();
+        });
+        stickerHeightInput.addEventListener('input', () => {
+            updateCanvasSize();
+            drawCanvas();
+        });
+        stickerGapInput.addEventListener('input', () => {
+            updateCanvasSize();
+            drawCanvas();
+        });
+        centeredTextLInput.addEventListener('input', drawCanvas);
+        centeredTextRInput.addEventListener('input', drawCanvas);
+        useDate.addEventListener('change', drawCanvas);
+        datePicker.addEventListener('input', drawCanvas);
+
+        // Initialize the canvas with default size and first QR code
+        updateCanvasSize();
+        drawCanvas();
+    </script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/service-worker.js').then(function (registration) {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }, function (err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
