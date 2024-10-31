@@ -5,8 +5,8 @@
 // print configuration
 const darkness = 0x08 // range: 0x01 - 0x0f
 const speed = 0x05 // range: 0x01 - 0x05
-const paperType = 0x0a // Mode: 0a="Label With Gaps" 0b="Continuous" 26="Label With Marks"
-const markOffset = 0 // margin-top for printing when paperType === 0x26
+const paperType = 0x26 // Mode: 0a="Label With Gaps" 0b="Continuous" 26="Label With Marks"
+const markOffset = 25 // margin-top for printing when paperType === 0x26
 
 let array = null
 
