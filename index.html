@@ -243,7 +243,7 @@
 
         const imageUploadInput = document.getElementById('imageUpload');
 
-        // Function to draw an uploaded image on the canvas as grayscale and dithered
+        // Function to draw an uploaded image on the canvas as grayscale and dithered if not black and white
         const drawImage = (file) => {
             const img = new Image();
             const reader = new FileReader();
@@ -256,20 +256,32 @@
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const data = imageData.data;
 
-                    // Floyd-Steinberg Dithering
+                    // Check if the image is already black and white
+                    let isBlackAndWhite = true;
+
                     for (let i = 0; i < data.length; i += 4) {
-                        // Convert to grayscale
-                        let oldPixel = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-                        const newPixel = oldPixel < 128 ? 0 : 255;
-                        const quantError = oldPixel - newPixel;
+                        if (data[i] !== data[i + 1] || data[i] !== data[i + 2]) {
+                            isBlackAndWhite = false;
+                            break;
+                        }
+                    }
 
-                        data[i] = data[i + 1] = data[i + 2] = newPixel;
+                    if (!isBlackAndWhite) {
+                        // Floyd-Steinberg Dithering
+                        for (let i = 0; i < data.length; i += 4) {
+                            // Convert to grayscale
+                            let oldPixel = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+                            const newPixel = oldPixel < 128 ? 0 : 255;
+                            const quantError = oldPixel - newPixel;
 
-                        // Propagate error
-                        if (i + 4 < data.length) data[i + 4] += quantError * 7 / 16;
-                        if (i + canvas.width * 4 - 4 < data.length) data[i + canvas.width * 4 - 4] += quantError * 3 / 16;
-                        if (i + canvas.width * 4 < data.length) data[i + canvas.width * 4] += quantError * 5 / 16;
-                        if (i + canvas.width * 4 + 4 < data.length) data[i + canvas.width * 4 + 4] += quantError * 1 / 16;
+                            data[i] = data[i + 1] = data[i + 2] = newPixel;
+
+                            // Propagate error
+                            if (i + 4 < data.length) data[i + 4] += quantError * 7 / 16;
+                            if (i + canvas.width * 4 - 4 < data.length) data[i + canvas.width * 4 - 4] += quantError * 3 / 16;
+                            if (i + canvas.width * 4 < data.length) data[i + canvas.width * 4] += quantError * 5 / 16;
+                            if (i + canvas.width * 4 + 4 < data.length) data[i + canvas.width * 4 + 4] += quantError * 1 / 16;
+                        }
                     }
 
                     // Put image data back
