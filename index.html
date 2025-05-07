@@ -126,7 +126,10 @@
                 </div>
             </div>
 
-
+            <div class="input-group">
+                <label for="imageUpload">Upload Image:</label>
+                <input type="file" id="imageUpload" accept="image/*">
+            </div>
         </form>
 
         <button class="print-button" id="connectButton">Connect printer</button>
@@ -237,18 +240,67 @@
 
 
         // Function to draw the canvas
+
+        const imageUploadInput = document.getElementById('imageUpload');
+
+        // Function to draw an uploaded image on the canvas as grayscale and dithered
+        const drawImage = (file) => {
+            const img = new Image();
+            const reader = new FileReader();
+
+            reader.onload = (event) => {
+                img.onload = () => {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    // Get image data
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+
+                    // Floyd-Steinberg Dithering
+                    for (let i = 0; i < data.length; i += 4) {
+                        // Convert to grayscale
+                        let oldPixel = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+                        const newPixel = oldPixel < 128 ? 0 : 255;
+                        const quantError = oldPixel - newPixel;
+
+                        data[i] = data[i + 1] = data[i + 2] = newPixel;
+
+                        // Propagate error
+                        if (i + 4 < data.length) data[i + 4] += quantError * 7 / 16;
+                        if (i + canvas.width * 4 - 4 < data.length) data[i + canvas.width * 4 - 4] += quantError * 3 / 16;
+                        if (i + canvas.width * 4 < data.length) data[i + canvas.width * 4] += quantError * 5 / 16;
+                        if (i + canvas.width * 4 + 4 < data.length) data[i + canvas.width * 4 + 4] += quantError * 1 / 16;
+                    }
+
+                    // Put image data back
+                    ctx.putImageData(imageData, 0, 0);
+                };
+                img.src = event.target.result;
+            };
+
+            reader.readAsDataURL(file);
+        };
+
+        // Event listener for image upload
+        imageUploadInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                drawCanvas();
+            }
+        });
+
         const drawCanvas = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Draw white background
             ctx.fillStyle = '#fff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+            if (imageUploadInput.files[0])  drawImage(imageUploadInput.files[0]); // Draw uploaded image if any
             drawQRCode();
-            drawDate(); // Draw date if checkbox is checked
-            drawCenteredText(); // Draw centered text if provided
+            drawDate();
+            drawCenteredText();
         };
-
 
         // Add connect functionality
         connectButton.addEventListener('click', async function connect() {
